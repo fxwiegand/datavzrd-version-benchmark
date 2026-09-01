@@ -1,0 +1,91 @@
+configfile: "config/config.yaml"
+
+
+SIZES = config["sizes"]
+
+
+def render_memory(wildcards):
+    return 1000 + int(4200 * int(wildcards.size) / 1_000_000)
+
+
+rule all:
+    input:
+        "results/report",
+        "results/comparison.csv",
+
+
+rule generate:
+    output:
+        table=temp("results/data/{size}.csv"),
+        spec="results/configs/{size}.yaml",
+    params:
+        seed=config["seed"],
+    conda:
+        "envs/pandas.yaml"
+    script:
+        "scripts/generate.py"
+
+
+rule render_old:
+    input:
+        spec="results/configs/{size}.yaml",
+        table="results/data/{size}.csv",
+    output:
+        "results/metrics/old/{size}.tsv",
+    params:
+        repeats=config["repeats"],
+    resources:
+        mem_mb=render_memory,
+    conda:
+        "envs/datavzrd-2.72.0.yaml"
+    script:
+        "scripts/measure.py"
+
+
+rule render_new:
+    input:
+        spec="results/configs/{size}.yaml",
+        table="results/data/{size}.csv",
+    output:
+        "results/metrics/new/{size}.tsv",
+    params:
+        repeats=config["repeats"],
+    resources:
+        mem_mb=render_memory,
+    conda:
+        "envs/datavzrd-2.72.1.yaml"
+    script:
+        "scripts/measure.py"
+
+
+rule aggregate:
+    input:
+        old=expand("results/metrics/old/{size}.tsv", size=SIZES),
+        new=expand("results/metrics/new/{size}.tsv", size=SIZES),
+    output:
+        table="results/comparison.csv",
+        spec="results/comparison.yaml",
+    params:
+        sizes=SIZES,
+        old_version=config["versions"]["old"],
+        new_version=config["versions"]["new"],
+    conda:
+        "envs/pandas.yaml"
+    script:
+        "scripts/aggregate.py"
+
+
+rule report:
+    input:
+        spec="results/comparison.yaml",
+        table="results/comparison.csv",
+    output:
+        report(
+            directory("results/report"),
+            htmlindex="index.html",
+            category="datavzrd benchmark",
+        ),
+    conda:
+        "envs/datavzrd-2.72.1.yaml"
+    shell:
+        "datavzrd {input.spec} --output {output} --overwrite-output"
