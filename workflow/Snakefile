@@ -1,11 +1,20 @@
 configfile: "config/config.yaml"
 
 
-SIZES = config["sizes"]
+SHAPES = []
+for rows in config["sizes"]:
+    SHAPES.append((rows, config["base_width"]))
+for width in config["widths"]:
+    shape = (config["base_rows"], width)
+    if shape not in SHAPES:
+        SHAPES.append(shape)
+
+SHAPE_ROWS = [rows for rows, cols in SHAPES]
+SHAPE_COLS = [cols for rows, cols in SHAPES]
 
 
 def render_memory(wildcards):
-    return 1000 + int(4200 * int(wildcards.size) / 1_000_000)
+    return 1000 + int(int(wildcards.rows) * int(wildcards.cols) * 0.0005)
 
 
 rule all:
@@ -16,8 +25,8 @@ rule all:
 
 rule generate:
     output:
-        table=temp("results/data/{size}.csv"),
-        spec="results/configs/{size}.yaml",
+        table=temp("results/data/{rows}_{cols}.csv"),
+        spec="results/configs/{rows}_{cols}.yaml",
     params:
         seed=config["seed"],
     conda:
@@ -28,10 +37,10 @@ rule generate:
 
 rule render_old:
     input:
-        spec="results/configs/{size}.yaml",
-        table="results/data/{size}.csv",
+        spec="results/configs/{rows}_{cols}.yaml",
+        table="results/data/{rows}_{cols}.csv",
     output:
-        "results/metrics/old/{size}.tsv",
+        "results/metrics/old/{rows}_{cols}.tsv",
     params:
         repeats=config["repeats"],
     resources:
@@ -44,10 +53,10 @@ rule render_old:
 
 rule render_new:
     input:
-        spec="results/configs/{size}.yaml",
-        table="results/data/{size}.csv",
+        spec="results/configs/{rows}_{cols}.yaml",
+        table="results/data/{rows}_{cols}.csv",
     output:
-        "results/metrics/new/{size}.tsv",
+        "results/metrics/new/{rows}_{cols}.tsv",
     params:
         repeats=config["repeats"],
     resources:
@@ -60,13 +69,13 @@ rule render_new:
 
 rule aggregate:
     input:
-        old=expand("results/metrics/old/{size}.tsv", size=SIZES),
-        new=expand("results/metrics/new/{size}.tsv", size=SIZES),
+        old=expand("results/metrics/old/{rows}_{cols}.tsv", zip, rows=SHAPE_ROWS, cols=SHAPE_COLS),
+        new=expand("results/metrics/new/{rows}_{cols}.tsv", zip, rows=SHAPE_ROWS, cols=SHAPE_COLS),
     output:
         table="results/comparison.csv",
         spec="results/comparison.yaml",
     params:
-        sizes=SIZES,
+        shapes=SHAPES,
         old_version=config["versions"]["old"],
         new_version=config["versions"]["new"],
     conda:

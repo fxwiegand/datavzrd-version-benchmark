@@ -2,50 +2,27 @@ import numpy as np
 import pandas as pd
 import yaml
 
-size = int(snakemake.wildcards.size)
-rng = np.random.default_rng(snakemake.params.seed + size)
+rows = int(snakemake.wildcards.rows)
+cols = int(snakemake.wildcards.cols)
+rng = np.random.default_rng(snakemake.params.seed + rows + cols)
 
-genes = np.array([f"GENE{i}" for i in range(500)])
-samples = np.array([f"S{i:03d}" for i in range(50)])
-chromosomes = np.array([f"chr{c}" for c in list(range(1, 23)) + ["X", "Y"]])
-conditions = np.array(["control", "treated", "mutant", "wildtype"])
-tissues = np.array(["liver", "brain", "lung", "kidney", "heart", "skin", "blood", "muscle"])
-notes = np.array(["ok", "recheck", "borderline", "flagged", "clean"])
+categories = np.array(["missense", "frameshift", "nonsense", "splice", "inframe", ""])
 
-table = pd.DataFrame(
-    {
-        "id": [f"id_{i:09d}" for i in range(size)],
-        "gene": rng.choice(genes, size),
-        "sample": rng.choice(samples, size),
-        "chromosome": rng.choice(chromosomes, size),
-        "condition": rng.choice(conditions, size),
-        "tissue": rng.choice(tissues, size),
-        "p_value": rng.random(size).round(6),
-        "adj_p_value": rng.random(size).round(6),
-        "log2_fold_change": (rng.standard_normal(size) * 2).round(4),
-        "expression": (rng.random(size) * 1000).round(3),
-        "score": (rng.random(size) * 100).round(2),
-        "count": rng.integers(0, 100000, size),
-        "depth": rng.integers(0, 5000, size),
-        "significant": rng.choice(["true", "false"], size),
-        "note": rng.choice(notes, size),
-    }
-)
-table.to_csv(snakemake.output.table, index=False)
+data = {"id": [f"id_{i:09d}" for i in range(rows)]}
+for column in range(cols):
+    name = f"col_{column:04d}"
+    if column % 2 == 0:
+        data[name] = (rng.random(rows) * 1000).round(3)
+    else:
+        data[name] = rng.choice(categories, rows)
 
-palette = {
-    "p_value": "blues",
-    "adj_p_value": "reds",
-    "expression": "greens",
-    "score": "viridis",
-    "depth": "purples",
-}
+pd.DataFrame(data).to_csv(snakemake.output.table, index=False)
+
 columns = {
-    column: {"plot": {"heatmap": {"scale": "linear", "color-scheme": scheme}}}
-    for column, scheme in palette.items()
+    f"col_{column:04d}": {"plot": {"heatmap": {"scale": "linear", "color-scheme": "blues"}}}
+    for column in range(cols)
+    if column % 2 == 0
 }
-columns["count"] = {"plot": {"bars": {"scale": "linear"}}}
-columns["log2_fold_change"] = {"plot": {"ticks": {"scale": "linear"}}}
 
 spec = {
     "name": "benchmark",

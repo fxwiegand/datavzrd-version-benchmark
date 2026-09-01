@@ -10,14 +10,15 @@ def summarise(path):
 
 
 rows = []
-for size, old_path, new_path in zip(
-    snakemake.params.sizes, snakemake.input.old, snakemake.input.new
+for (shape_rows, shape_cols), old_path, new_path in zip(
+    snakemake.params.shapes, snakemake.input.old, snakemake.input.new
 ):
     old_seconds, old_mb = summarise(old_path)
     new_seconds, new_mb = summarise(new_path)
     rows.append(
         {
-            "rows": size,
+            "rows": shape_rows,
+            "columns": shape_cols,
             "runtime_old_s": round(old_seconds, 1),
             "runtime_new_s": round(new_seconds, 1),
             "runtime_saved_s": round(old_seconds - new_seconds, 1),
@@ -29,7 +30,7 @@ for size, old_path, new_path in zip(
         }
     )
 
-comparison = pd.DataFrame(rows)
+comparison = pd.DataFrame(rows).sort_values(["rows", "columns"]).reset_index(drop=True)
 comparison.to_csv(snakemake.output.table, index=False)
 
 columns = {
