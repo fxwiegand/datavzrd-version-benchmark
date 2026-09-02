@@ -9,6 +9,10 @@ def summarise(path):
     return statistics.median(frame["seconds"]), statistics.median(frame["peak_mb"])
 
 
+def label(version):
+    return version.replace(".", "_")
+
+
 versions = snakemake.params.versions
 baseline = versions[0]
 latest = versions[-1]
@@ -32,8 +36,8 @@ for shape in shapes:
         s, m = summarise(paths[(version, shape)])
         seconds[version] = s
         memory[version] = m
-        record[f"runtime_{version}_s"] = round(s, 1)
-        record[f"memory_{version}_mb"] = round(m)
+        record[f"runtime_{label(version)}_s"] = round(s, 1)
+        record[f"memory_{label(version)}_mb"] = round(m)
     record["runtime_saved_percent"] = round(
         (seconds[baseline] - seconds[latest]) / seconds[baseline] * 100, 1
     )
@@ -49,9 +53,9 @@ comparison.to_csv(snakemake.output.table, index=False)
 
 columns = {}
 for version in versions:
-    columns[f"runtime_{version}_s"] = {"plot": {"bars": {"scale": "linear"}}}
+    columns[f"runtime_{label(version)}_s"] = {"plot": {"bars": {"scale": "linear"}}}
 for version in versions:
-    columns[f"memory_{version}_mb"] = {"plot": {"bars": {"scale": "linear"}}}
+    columns[f"memory_{label(version)}_mb"] = {"plot": {"bars": {"scale": "linear"}}}
 for column in ("runtime_saved_percent", "memory_saved_percent"):
     columns[column] = {
         "plot": {"heatmap": {"scale": "linear", "color-scheme": "greens", "domain": [0, 100]}}
