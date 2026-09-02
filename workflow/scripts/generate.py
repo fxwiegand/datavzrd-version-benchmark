@@ -1,52 +1,87 @@
+import os
+
 import numpy as np
 import pandas as pd
 import yaml
 
 rows = int(snakemake.wildcards.rows)
 cols = int(snakemake.wildcards.cols)
-rng = np.random.default_rng(snakemake.params.seed + rows + cols)
+tables = int(snakemake.wildcards.tables)
+rng = np.random.default_rng(snakemake.params.seed + rows + cols + tables)
 
 MAX_IN_MEMORY_ROWS = 1500
 
 categories = np.array(["missense", "frameshift", "nonsense", "splice", "inframe", ""])
 
-data = {"id": [f"id_{i:09d}" for i in range(rows)]}
-for column in range(cols):
-    name = f"col_{column:04d}"
-    if column % 2 == 0:
-        data[name] = (rng.random(rows) * 1000).round(3)
-    else:
-        data[name] = rng.choice(categories, rows)
+data_dir = snakemake.output.data
+os.makedirs(data_dir, exist_ok=True)
 
-pd.DataFrame(data).to_csv(snakemake.output.table, index=False)
+keys = [f"id_{index:09d}" for index in range(rows)]
 
-numeric_columns = [f"col_{column:04d}" for column in range(cols) if column % 2 == 0]
-categorical_columns = [f"col_{column:04d}" for column in range(cols) if column % 2 == 1]
 
-columns = {}
-if rows <= MAX_IN_MEMORY_ROWS and categorical_columns:
-    for name in categorical_columns:
-        columns[name] = {
-            "plot": {
-                "heatmap": {
-                    "scale": "ordinal",
-                    "color-scheme": "category20",
-                    "aux-domain-columns": [
-                        other for other in categorical_columns if other != name
-                    ],
+def write_table(name, link_keys=None):
+    frame = {"id": keys}
+    if link_keys is not None:
+        frame["link_key"] = rng.choice(link_keys, rows)
+    for column in range(cols):
+        column_name = f"col_{column:04d}"
+        if column % 2 == 0:
+            frame[column_name] = (rng.random(rows) * 1000).round(3)
+        else:
+            frame[column_name] = rng.choice(categories, rows)
+    pd.DataFrame(frame).to_csv(os.path.join(data_dir, f"{name}.csv"), index=False)
+
+
+def heatmaps():
+    categorical = [f"col_{column:04d}" for column in range(cols) if column % 2 == 1]
+    numeric = [f"col_{column:04d}" for column in range(cols) if column % 2 == 0]
+    columns = {}
+    if rows <= MAX_IN_MEMORY_ROWS and categorical:
+        for name in categorical:
+            columns[name] = {
+                "plot": {
+                    "heatmap": {
+                        "scale": "ordinal",
+                        "color-scheme": "category20",
+                        "aux-domain-columns": [
+                            other for other in categorical if other != name
+                        ],
+                    }
                 }
             }
-        }
-else:
-    for name in numeric_columns:
-        columns[name] = {"plot": {"heatmap": {"scale": "linear", "color-scheme": "blues"}}}
+    else:
+        for name in numeric:
+            columns[name] = {"plot": {"heatmap": {"scale": "linear", "color-scheme": "blues"}}}
+    return columns
+
+
+write_table("target")
+
+datasets = {"target": {"path": os.path.join(data_dir, "target.csv"), "separator": ","}}
+views = {"target": {"dataset": "target", "render-table": {"columns": heatmaps()}}}
+
+for table in range(tables):
+    name = f"source_{table:04d}"
+    write_table(name, link_keys=keys)
+    datasets[name] = {
+        "path": os.path.join(data_dir, f"{name}.csv"),
+        "separator": ",",
+        "links": {
+            "to target": {
+                "column": "link_key",
+                "table-row": "target/id",
+                "optional": True,
+            }
+        },
+    }
+    views[name] = {"dataset": name, "render-table": {"columns": heatmaps()}}
 
 spec = {
     "name": "benchmark",
     "max-in-memory-rows": MAX_IN_MEMORY_ROWS,
-    "datasets": {"data": {"path": snakemake.output.table, "separator": ","}},
-    "default-view": "data",
-    "views": {"data": {"dataset": "data", "render-table": {"columns": columns}}},
+    "default-view": "target",
+    "datasets": datasets,
+    "views": views,
 }
 with open(snakemake.output.spec, "w") as handle:
     yaml.dump(spec, handle, sort_keys=False)

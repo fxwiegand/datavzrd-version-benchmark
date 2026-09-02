@@ -1,14 +1,20 @@
 configfile: "config/config.yaml"
 
 
-SHAPES = [(rows, cols) for rows in config["rows"] for cols in config["columns"]]
+SHAPES = [
+    (rows, cols, tables)
+    for rows in config["rows"]
+    for cols in config["columns"]
+    for tables in config["tables"]
+]
 
 VERSIONS = config["versions"]
 LATEST = VERSIONS[-1]
 
 
 def render_memory(wildcards):
-    return 1000 + int(int(wildcards.rows) * int(wildcards.cols) * 0.0005)
+    cells = int(wildcards.rows) * int(wildcards.cols) * int(wildcards.tables)
+    return 1000 + int(cells * 0.0005)
 
 
 rule all:
@@ -19,8 +25,8 @@ rule all:
 
 rule generate:
     output:
-        table=temp("results/data/{rows}_{cols}.csv"),
-        spec="results/configs/{rows}_{cols}.yaml",
+        data=temp(directory("results/data/{rows}_{cols}_{tables}")),
+        spec="results/configs/{rows}_{cols}_{tables}.yaml",
     params:
         seed=config["seed"],
     conda:
@@ -31,10 +37,10 @@ rule generate:
 
 rule render:
     input:
-        spec="results/configs/{rows}_{cols}.yaml",
-        table="results/data/{rows}_{cols}.csv",
+        spec="results/configs/{rows}_{cols}_{tables}.yaml",
+        data="results/data/{rows}_{cols}_{tables}",
     output:
-        "results/metrics/{version}/{rows}_{cols}.tsv",
+        "results/metrics/{version}/{rows}_{cols}_{tables}.tsv",
     params:
         repeats=config["repeats"],
     resources:
@@ -48,9 +54,9 @@ rule render:
 rule aggregate:
     input:
         metrics=[
-            f"results/metrics/{version}/{rows}_{cols}.tsv"
+            f"results/metrics/{version}/{rows}_{cols}_{tables}.tsv"
             for version in VERSIONS
-            for rows, cols in SHAPES
+            for rows, cols, tables in SHAPES
         ],
     output:
         table="results/comparison.csv",

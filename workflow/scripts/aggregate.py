@@ -14,12 +14,14 @@ baseline = versions[0]
 latest = versions[-1]
 
 rows = []
-for shape_rows, shape_cols in snakemake.params.shapes:
-    record = {"rows": shape_rows, "columns": shape_cols}
+for shape_rows, shape_cols, shape_tables in snakemake.params.shapes:
+    record = {"rows": shape_rows, "columns": shape_cols, "tables": shape_tables}
     seconds = {}
     memory = {}
     for version in versions:
-        s, m = summarise(f"results/metrics/{version}/{shape_rows}_{shape_cols}.tsv")
+        s, m = summarise(
+            f"results/metrics/{version}/{shape_rows}_{shape_cols}_{shape_tables}.tsv"
+        )
         seconds[version] = s
         memory[version] = m
         record[f"runtime_{version}_s"] = round(s, 1)
@@ -32,7 +34,9 @@ for shape_rows, shape_cols in snakemake.params.shapes:
     )
     rows.append(record)
 
-comparison = pd.DataFrame(rows).sort_values(["rows", "columns"]).reset_index(drop=True)
+comparison = (
+    pd.DataFrame(rows).sort_values(["rows", "columns", "tables"]).reset_index(drop=True)
+)
 comparison.to_csv(snakemake.output.table, index=False)
 
 columns = {}
