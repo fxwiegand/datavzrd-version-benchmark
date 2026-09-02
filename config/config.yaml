@@ -1,20 +1,16 @@
-sizes:
+rows:
   - 100000
   - 500000
 
-widths:
+columns:
   - 10
   - 100
   - 1000
-
-base_width: 10
-
-base_rows: 2000
 
 repeats: 3
 
 seed: 20240201
 
 versions:
-  old: "2.72.0"
-  new: "2.72.1"
+  old: "2.72.1"
+  new: "2.72.2"

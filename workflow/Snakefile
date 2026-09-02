@@ -1,13 +1,7 @@
 configfile: "config/config.yaml"
 
 
-SHAPES = []
-for rows in config["sizes"]:
-    SHAPES.append((rows, config["base_width"]))
-for width in config["widths"]:
-    shape = (config["base_rows"], width)
-    if shape not in SHAPES:
-        SHAPES.append(shape)
+SHAPES = [(rows, cols) for rows in config["rows"] for cols in config["columns"]]
 
 SHAPE_ROWS = [rows for rows, cols in SHAPES]
 SHAPE_COLS = [cols for rows, cols in SHAPES]
@@ -46,7 +40,7 @@ rule render_old:
     resources:
         mem_mb=render_memory,
     conda:
-        "envs/datavzrd-2.72.0.yaml"
+        "envs/datavzrd-2.72.1.yaml"
     script:
         "scripts/measure.py"
 
@@ -62,7 +56,7 @@ rule render_new:
     resources:
         mem_mb=render_memory,
     conda:
-        "envs/datavzrd-2.72.1.yaml"
+        "envs/datavzrd-2.72.2.yaml"
     script:
         "scripts/measure.py"
 
@@ -95,6 +89,6 @@ rule report:
             category="datavzrd benchmark",
         ),
     conda:
-        "envs/datavzrd-2.72.1.yaml"
+        "envs/datavzrd-2.72.2.yaml"
     shell:
         "datavzrd {input.spec} --output {output} --overwrite-output"
