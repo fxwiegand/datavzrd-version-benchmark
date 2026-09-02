@@ -3,8 +3,8 @@ configfile: "config/config.yaml"
 
 SHAPES = [(rows, cols) for rows in config["rows"] for cols in config["columns"]]
 
-SHAPE_ROWS = [rows for rows, cols in SHAPES]
-SHAPE_COLS = [cols for rows, cols in SHAPES]
+VERSIONS = config["versions"]
+LATEST = VERSIONS[-1]
 
 
 def render_memory(wildcards):
@@ -29,49 +29,35 @@ rule generate:
         "scripts/generate.py"
 
 
-rule render_old:
+rule render:
     input:
         spec="results/configs/{rows}_{cols}.yaml",
         table="results/data/{rows}_{cols}.csv",
     output:
-        "results/metrics/old/{rows}_{cols}.tsv",
+        "results/metrics/{version}/{rows}_{cols}.tsv",
     params:
         repeats=config["repeats"],
     resources:
         mem_mb=render_memory,
     conda:
-        "envs/datavzrd-2.72.1.yaml"
-    script:
-        "scripts/measure.py"
-
-
-rule render_new:
-    input:
-        spec="results/configs/{rows}_{cols}.yaml",
-        table="results/data/{rows}_{cols}.csv",
-    output:
-        "results/metrics/new/{rows}_{cols}.tsv",
-    params:
-        repeats=config["repeats"],
-    resources:
-        mem_mb=render_memory,
-    conda:
-        "envs/datavzrd-2.72.2.yaml"
+        "envs/datavzrd-{version}.yaml"
     script:
         "scripts/measure.py"
 
 
 rule aggregate:
     input:
-        old=expand("results/metrics/old/{rows}_{cols}.tsv", zip, rows=SHAPE_ROWS, cols=SHAPE_COLS),
-        new=expand("results/metrics/new/{rows}_{cols}.tsv", zip, rows=SHAPE_ROWS, cols=SHAPE_COLS),
+        metrics=[
+            f"results/metrics/{version}/{rows}_{cols}.tsv"
+            for version in VERSIONS
+            for rows, cols in SHAPES
+        ],
     output:
         table="results/comparison.csv",
         spec="results/comparison.yaml",
     params:
+        versions=VERSIONS,
         shapes=SHAPES,
-        old_version=config["versions"]["old"],
-        new_version=config["versions"]["new"],
     conda:
         "envs/pandas.yaml"
     script:
@@ -89,6 +75,6 @@ rule report:
             category="datavzrd benchmark",
         ),
     conda:
-        "envs/datavzrd-2.72.2.yaml"
+        f"envs/datavzrd-{LATEST}.yaml"
     shell:
         "datavzrd {input.spec} --output {output} --overwrite-output"
