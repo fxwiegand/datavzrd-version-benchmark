@@ -24,16 +24,12 @@ def write_table(name, link_keys=None):
     if link_keys is not None:
         frame["link_key"] = rng.choice(link_keys, rows)
     for column in range(cols):
-        column_name = f"col_{column:04d}"
-        if column % 2 == 0:
-            frame[column_name] = (rng.random(rows) * 1000).round(3)
-        else:
-            frame[column_name] = rng.choice(categories, rows)
+        frame[f"col_{column:04d}"] = rng.choice(categories, rows)
     pd.DataFrame(frame).to_csv(os.path.join(data_dir, f"{name}.csv"), index=False)
 
 
 def heatmaps():
-    categorical = [f"col_{column:04d}" for column in range(cols) if column % 2 == 1]
+    categorical = [f"col_{column:04d}" for column in range(cols)]
     columns = {}
     for name in categorical:
         columns[name] = {
