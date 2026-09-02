@@ -1,12 +1,7 @@
 configfile: "config/config.yaml"
 
 
-SHAPES = [
-    (rows, cols, tables)
-    for rows in config["rows"]
-    for cols in config["columns"]
-    for tables in config["tables"]
-]
+SHAPES = [tuple(shape) for shape in config["shapes"]]
 
 VERSIONS = config["versions"]
 LATEST = VERSIONS[-1]
