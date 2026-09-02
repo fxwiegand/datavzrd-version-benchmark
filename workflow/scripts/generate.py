@@ -34,24 +34,19 @@ def write_table(name, link_keys=None):
 
 def heatmaps():
     categorical = [f"col_{column:04d}" for column in range(cols) if column % 2 == 1]
-    numeric = [f"col_{column:04d}" for column in range(cols) if column % 2 == 0]
     columns = {}
-    if rows <= MAX_IN_MEMORY_ROWS and categorical:
-        for name in categorical:
-            columns[name] = {
-                "plot": {
-                    "heatmap": {
-                        "scale": "ordinal",
-                        "color-scheme": "category20",
-                        "aux-domain-columns": [
-                            other for other in categorical if other != name
-                        ],
-                    }
+    for name in categorical:
+        columns[name] = {
+            "plot": {
+                "heatmap": {
+                    "scale": "ordinal",
+                    "color-scheme": "category20",
+                    "aux-domain-columns": [
+                        other for other in categorical if other != name
+                    ],
                 }
             }
-    else:
-        for name in numeric:
-            columns[name] = {"plot": {"heatmap": {"scale": "linear", "color-scheme": "blues"}}}
+        }
     return columns
 
 
